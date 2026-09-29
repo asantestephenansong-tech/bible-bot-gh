@@ -154,7 +154,8 @@ if prompt := st.chat_input("Ask, search, or ask about photo..."):
         with col2:
             if voice_on:
                 try:
-                    tts = gTTS(text=full[:300], lang='en')
+                    # For true Twi, we use English voice but Ghanaian Twi text works best
+tts = gTTS(text=m["content"][:300], lang='en', tld='com.gh')
                     audio_fp = io.BytesIO()
                     tts.write_to_fp(audio_fp)
                     st.audio(audio_fp.getvalue(), format='audio/mp3')
