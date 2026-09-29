@@ -27,7 +27,7 @@ if prompt := st.chat_input("Ask Bible question..."):
         st.markdown(prompt)
     with st.chat_message("assistant"):
         resp = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[{"role":"system","content":"You are Bible Bot Ghana. Answer with Bible verses, simple English, Twi or Pidgin when asked."}, *st.session_state.messages]
         )
         ans = resp.choices[0].message.content
