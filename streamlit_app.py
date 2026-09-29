@@ -1,10 +1,13 @@
 import streamlit as st
 from groq import Groq
-import datetime
+import base64
 import urllib.parse
+from duckduckgo_search import DDGS
+import datetime
 
-st.set_page_config(page_title="Bible Bot Ghana 🇬🇭", page_icon="📖", layout="centered")
+st.set_page_config(page_title="Bible Bot Ghana 🇬🇭 Level 5", page_icon="📖", layout="centered")
 
+# Secrets
 try:
     api_key = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=api_key)
@@ -12,71 +15,124 @@ except:
     st.error("Add GROQ_API_KEY in Secrets")
     st.stop()
 
-st.title("📖 Bible Bot Ghana 🇬🇭")
-st.caption("Twi | Pidgin | English — Now with Images! 🖼️")
+st.title("📖 Bible Bot Ghana 🇬🇭 Level 5")
+st.caption("Reads Photos | Searches Web | Shows Pictures | Like Meta AI!")
 
+# Memory
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Maakye! I can now show pictures! Try: *picture of Orion* or upload your own photo below! 🙏"}
+        {"role": "assistant", "content": "Maakye Stephen! Level 5 active! I can now:\n1. 📸 READ your uploaded photos\n2. 🌍 Search web\n3. 🖼️ Show pictures\n\nUpload a Bible page or type *search: latest church news Ghana*"}
     ]
 
+# Show history
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
         if "image_url" in m:
             st.image(m["image_url"])
 
-# --- Upload photo section ---
+# Sidebar
 with st.sidebar:
-    st.markdown("### 📤 Upload Photo")
-    uploaded = st.file_uploader("Upload your picture", type=["jpg","png","jpeg"])
+    st.markdown("### 📤 Upload to READ")
+    uploaded = st.file_uploader("Upload Bible page / note / picture", type=["jpg","png","jpeg"])
+    uploaded_base64 = None
     if uploaded:
-        st.image(uploaded, caption="Your upload")
-        st.success("Photo uploaded! Now ask bot about it")
+        st.image(uploaded, caption="Uploaded")
+        # Convert for AI to read
+        bytes_data = uploaded.getvalue()
+        uploaded_base64 = base64.b64encode(bytes_data).decode('utf-8')
+        st.success("I can now read this! Ask: *what does this say?*")
+
+    st.divider()
     if st.button("Clear Chat 🗑️"):
         st.session_state.messages = []
         st.rerun()
 
-SYSTEM_PROMPT = """You are Bible Bot Ghana... friendly Ghanaian Bible companion.
-If user asks for picture/image/photo, say you will show it.
-Keep answers short for mobile.
-Today is """ + datetime.datetime.now().strftime("%A %d %B %Y")
+SYSTEM_PROMPT = f"""You are Bible Bot Ghana Level 5, like Meta AI — warm, helpful, Ghanaian.
 
-if prompt := st.chat_input("Ask Bible question or ask for picture..."):
+Powers:
+- Read images if provided
+- Search web if needed
+- Speak Twi/Pidgin/English
+- Keep answers short, mobile friendly
+- Always give Bible verse
+
+Date: {datetime.datetime.now().strftime('%A %d %B %Y')}
+"""
+
+# Chat input
+if prompt := st.chat_input("Ask, search, or ask about uploaded photo..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        full = ""
         placeholder = st.empty()
+        full = ""
         image_url = None
 
-        # If user wants picture, generate via free Pollinations API
-        if "picture" in prompt.lower() or "image" in prompt.lower() or "photo" in prompt.lower():
-            # Create image URL
-            query = urllib.parse.quote(prompt.replace("picture of","").strip())
-            image_url = f"https://image.pollinations.ai/prompt/{query}?width=800&height=600&nologo=true"
-            full = f"Here's a picture of **{prompt}**:\n\n"
-            placeholder.markdown(full)
-            st.image(image_url)
-            full += f"\n\nIn the Bible, the heavens declare God's glory! Psalm 19:1 🙏"
-        else:
-            # Normal text chat
-            try:
+        try:
+            # 1. IMAGE GENERATION
+            if "picture" in prompt.lower() or "image" in prompt.lower() or "draw" in prompt.lower():
+                clean = prompt.lower().replace("picture of","").replace("image of","").replace("picture","").strip()
+                query = urllib.parse.quote(clean)
+                image_url = f"https://image.pollinations.ai/prompt/{query}?width=800&height=800&nologo=true"
+                full = f"Here's **{clean}**:\n"
+                placeholder.markdown(full)
+                st.image(image_url)
+                full += "\n\nPsalm 19:1 - The heavens declare God's glory! 🙏"
+
+            # 2. WEB SEARCH
+            elif prompt.lower().startswith("search:"):
+                search_q = prompt.replace("search:","").strip()
+                placeholder.markdown(f"Searching web for: {search_q}... 🔍")
+                results = DDGS().text(search_q, max_results=3)
+                context = "\n".join([r['body'] for r in results])
+                completion = client.chat.completions.create(
+                    model="openai/gpt-oss-20b",
+                    messages=[
+                        {"role":"system","content": SYSTEM_PROMPT + f"\nWeb results:\n{context}"},
+                        {"role":"user","content": prompt}
+                    ]
+                )
+                full = completion.choices[0].message.content
+                placeholder.markdown(full)
+
+            # 3. READ PHOTO + QUESTION (Vision model)
+            elif uploaded_base64:
+                placeholder.markdown("Reading your photo... 👁️")
+                completion = client.chat.completions.create(
+                    model="meta-llama/llama-4-scout-17b-16e-instruct",
+                    messages=[
+                        {"role":"system","content": SYSTEM_PROMPT},
+                        {
+                            "role":"user",
+                            "content": [
+                                {"type":"text","text": prompt},
+                                {"type":"image_url","image_url":{"url": f"data:image/jpeg;base64,{uploaded_base64}"}}
+                            ]
+                        }
+                    ]
+                )
+                full = completion.choices[0].message.content
+                placeholder.markdown(full)
+
+            # 4. NORMAL CHAT
+            else:
                 stream = client.chat.completions.create(
                     model="openai/gpt-oss-20b",
                     messages=[{"role":"system","content":SYSTEM_PROMPT}, *st.session_state.messages],
-                    temperature=0.7, max_tokens=600, stream=True
+                    temperature=0.7, max_tokens=700, stream=True
                 )
                 for chunk in stream:
                     if chunk.choices[0].delta.content:
                         full += chunk.choices[0].delta.content
                         placeholder.markdown(full + "▌")
                 placeholder.markdown(full)
-            except Exception as e:
-                full = f"Small error: {e}"
-                placeholder.markdown(full)
+
+        except Exception as e:
+            full = f"Error: {e} — try again!"
+            placeholder.markdown(full)
 
     msg = {"role":"assistant","content":full}
     if image_url:
