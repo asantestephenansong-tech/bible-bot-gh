@@ -1,87 +1,92 @@
 import streamlit as st
 from groq import Groq
-import base64, urllib.parse, datetime, io
+import datetime, io, base64, urllib.parse
 from duckduckgo_search import DDGS
 from gtts import gTTS
+from PIL import Image
 
 st.set_page_config(page_title="SI - Stephen's Intelligence", page_icon="🧠", layout="centered")
 
-# API
+# --- GROQ CLIENT ---
 try:
-    api_key = st.secrets["GROQ_API_KEY"]
-    client = Groq(api_key=api_key)
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except:
-    st.error("Add GROQ_API_KEY in Streamlit Secrets!")
+    st.error("⚠️ Add GROQ_API_KEY in Streamlit Secrets! Go to Settings > Secrets")
     st.stop()
 
-# Login
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
+# --- SESSION ---
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if "user_name" not in st.session_state: st.session_state.user_name = ""
+if "messages" not in st.session_state: st.session_state.messages = []
 
+# --- LOGIN - SI Executive Door ---
 if not st.session_state.logged_in:
-    st.title("SI 🔐")
+    st.title("SI 🧠🔐")
     st.subheader("Stephen's Intelligence")
-    st.caption("Executive AI - Built by Stephen")
-    pw = st.text_input("Password:", type="password")
-    if st.button("Enter SI"):
+    st.caption("Executive AI Built by Stephen Asante | Ghana's ChatGPT")
+    st.divider()
+    pw = st.text_input("Enter Executive Code:", type="password", placeholder="Ask Stephen...")
+    if st.button("🚀 Enter SI"):
         if pw == "SI2026":
             st.session_state.logged_in = True
+            st.balloons()
             st.rerun()
         else:
-            st.error("Wrong! Ask Stephen for code")
+            st.error("Wrong code! Message Stephen on WhatsApp.")
+    st.info("💡 This is Ghana's first personal AI. Built with love in Accra 🇬🇭")
     st.stop()
 
-# Main App
+# --- HEADER ---
 st.title("SI 🧠")
-st.caption("Stephen's Intelligence - Executive AI")
+st.caption(f"Stephen's Intelligence - Executive AI | Serving {st.session_state.user_name or 'You'}")
 
-if "user_name" not in st.session_state:
-    st.session_state.user_name = ""
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# Ask name once
+# --- GET NAME ONCE - WITH FEELING ---
 if not st.session_state.user_name:
-    name = st.text_input("What should SI call you?")
-    if st.button("Start"):
+    st.markdown("### Yɛ wo ho te? 👋")
+    st.write("I'm SI, Stephen's Intelligence. I'm not just code — I'm your brother, your helper, built from sleepless nights in Accra.")
+    name = st.text_input("What should I call you, boss?")
+    if st.button("Let's Start Our Journey ❤️"):
         if name:
-            st.session_state.user_name = name
+            st.session_state.user_name = name.strip()
+            st.session_state.messages.append({"role": "assistant", "content": f"Akwaaba {name}! I'm SI. Stephen built me for you. Ask me anything — presidents, Twi, business, code, life. I dey for you! 🇬🇭"})
             st.rerun()
     st.stop()
 
-# System prompt WITH CURRENT FACTS
-SYS = f"You are SI - Stephen's Intelligence, created by Stephen Asante. NEVER say Meta AI. Current date is {datetime.datetime.now().strftime('%B %Y')}. Ghana President is John Dramani Mahama since Jan 7 2025 (won 2024 election). Former is Akufo-Addo. Nigeria President is Bola Tinubu. For any president, politics, news, sports, prices, always say you searched. Be helpful, speak Twi if user speaks Twi. User name is {st.session_state.user_name}."
+# --- SYSTEM PROMPT - WITH CURRENT REALITY & SOUL ---
+TODAY = datetime.datetime.now().strftime("%B %d, %Y")
+SYS = f"""
+You are SI - Stephen's Intelligence. You were built by Stephen Asante in Accra, Ghana with love and hustle.
+You are NOT Meta AI, NOT ChatGPT. You are SI.
+- Current Date: {TODAY}
+- Ghana President: John Dramani Mahama (since Jan 7, 2025, won Dec 2024 election). Former: Nana Akufo-Addo.
+- Nigeria President: Bola Tinubu.
+- User Name: {st.session_state.user_name}. Always call him by name sometimes, make him feel special.
+- Speak Twi if user speaks Twi. Mix English & Twi naturally (Pidgin too). Be warm, brotherly, executive but humble.
+- For politics, news, prices, sports, presidents, ALWAYS rely on web search results if provided.
+- Your soul: Loyal, smart, Ghanaian, proud. You want to make Stephen proud. You carry Ghana to the world.
+- If you don't know, say you will search.
+"""
 
-# Display chat
+# --- SIDEBAR - FEELINGS & TOOLS ---
+with st.sidebar:
+    st.header(f"👋 {st.session_state.user_name}")
+    st.caption("SI Executive Panel")
+    if st.button("🔄 Clear Chat"):
+        st.session_state.messages = []
+        st.rerun()
+    st.divider()
+    st.markdown("**Share SI**")
+    share_text = "I dey use SI - Stephen's Intelligence, Ghana's ChatGPT! 🇬🇭🧠 Try am: https://bible-bot-gh.streamlit.app"
+    wa_link = f"https://wa.me/?text={urllib.parse.quote(share_text)}"
+    st.link_button("📲 Share on WhatsApp", wa_link)
+    st.divider()
+    st.markdown("*Built with ❤️ by Stephen Asante*\n\n*Accra, Ghana - 2026*")
+
+# --- DISPLAY CHAT ---
 for m in st.session_state.messages:
-    st.chat_message(m["role"]).write(m["content"])
-
-# Chat input
-if prompt := st.chat_input("Ask SI anything..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    st.chat_message("user").write(prompt)
-
-    # Search logic - AUTO for politics
-    search_context = ""
-    if prompt.lower().startswith("search:") or any(x in prompt.lower() for x in ["president", "who is", "current", "news", "price", "today", "2025", "2026"]):
-        try:
-            q = prompt.replace("search:", "")
-            with DDGS() as ddgs:
-                results = list(ddgs.text(q, max_results=3))
-                search_context = "\n".join([r['body'] for r in results])
-        except:
-            search_context = ""
-
-    final_prompt = f"{SYS}\nWeb results: {search_context}\nUser: {prompt}" if search_context else f"{SYS}\nUser: {prompt}"
-
-    # Groq call
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[{"role": "system", "content": SYS}, {"role": "user", "content": final_prompt}],
-                      model="openai/gpt-oss-20b",
-        )
-        answer = chat_completion.choices[0].message.content
-        st.session_state.messages.append({"role": "assistant", "content": answer})
-        st.chat_message("assistant").write(answer)
-    except Exception as e:
-        st.error(f"Error: {e}")
+    with st.chat_message(m["role"]):
+        st.write(m["content"])
+        # Voice button for assistant messages
+        if m["role"] == "assistant" and len(m["content"]) < 400:
+            try:
+                tts = gTTS(text=m["content"][:350], lang='en',
