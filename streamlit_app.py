@@ -1,4 +1,4 @@
-SYS streamlit as st
+import streamlit as st
 from groq import Groq
 import base64, urllib.parse, datetime, io
 from duckduckgo_search import DDGS
@@ -11,7 +11,8 @@ try:
     api_key = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=api_key)
 except:
-    st.error("Add GROQ_API_KEY in Streamlit Secrets"); st.stop()
+    st.error("Add GROQ_API_KEY in Streamlit Secrets!")
+    st.stop()
 
 # Login
 if "logged_in" not in st.session_state:
@@ -27,7 +28,7 @@ if not st.session_state.logged_in:
             st.session_state.logged_in = True
             st.rerun()
         else:
-            st.error("Wrong! Ask Stephen for password")
+            st.error("Wrong! Ask Stephen for code")
     st.stop()
 
 # Main App
@@ -37,121 +38,50 @@ st.caption("Stephen's Intelligence - Executive AI")
 if "user_name" not in st.session_state:
     st.session_state.user_name = ""
 if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "assistant", "content": "Akwaaba! I am SI - Stephen's Intelligence. Built by Stephen. I speak Twi, create pictures, search web, and read photos. What's your name?"}
-    ]
+    st.session_state.messages = []
 
-with st.sidebar:
-    st.markdown("### SI\nStephen's Intelligence")
-    name = st.text_input("Your Name:", value=st.session_state.user_name)
-    if name:
-        st.session_state.user_name = name
+# Ask name once
+if not st.session_state.user_name:
+    name = st.text_input("What should SI call you?")
+    if st.button("Start"):
+        if name:
+            st.session_state.user_name = name
+            st.rerun()
+    st.stop()
 
-    uploaded = st.file_uploader("📤 Upload Photo", type=["jpg","png","jpeg"])
-    b64_image = None
-    if uploaded:
-        st.image(uploaded)
-        b64_image = base64.b64encode(uploaded.getvalue()).decode()
+# System prompt WITH CURRENT FACTS
+SYS = f"You are SI - Stephen's Intelligence, created by Stephen Asante. NEVER say Meta AI. Current date is {datetime.datetime.now().strftime('%B %Y')}. Ghana President is John Dramani Mahama since Jan 7 2025 (won 2024 election). Former is Akufo-Addo. Nigeria President is Bola Tinubu. For any president, politics, news, sports, prices, always say you searched. Be helpful, speak Twi if user speaks Twi. User name is {st.session_state.user_name}."
 
-    voice_on = st.checkbox("🔊 Voice Answer", True)
-    st.markdown("---")
-    st.markdown("💎 SI Executive\nBuilt by Stephen")
-    st.markdown("💰 MoMo: 055XXXXXXX")
-    if st.button("Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
-
-# Show history
+# Display chat
 for m in st.session_state.messages:
-    with st.chat_message(m["role"]):
-        st.markdown(m["content"])
-        if "image_url" in m:
-            st.image(m["image_url"])
-        if m["role"] == "assistant":
-            st.link_button("📤 Share on WhatsApp", f"https://wa.me/?text={urllib.parse.quote(m['content'][:800])}")
+    st.chat_message(m["role"]).write(m["content"])
 
-SYS=f"You are SI - Stephen's Intelligence, built by Stephen. Your name is SI, never say Meta AI. Current Ghana President is John Mahama (since Jan 7 2025), not Akufo-Addo. Nigeria President is Tinubu. Always use web search for politics, presidents, prices. User: {st.session_state.user_name or 'Friend'}. Date: {datetime.datetime.now()}"
-if proprompt st.chat_input("Ask SI anything..."):
+# Chat input
+if prompt := st.chat_input("Ask SI anything..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    st.chat_message("user").write(prompt)
 
-    with st.chat_message("assistant"):
-        placeholder = st.empty()
-        full_text = ""
-        image_url = None
+    # Search logic - AUTO for politics
+    search_context = ""
+    if prompt.lower().startswith("search:") or any(x in prompt.lower() for x in ["president", "who is", "current", "news", "price", "today", "2025", "2026"]):
         try:
-            low = prompt.lower()
-            # PICTURE FEATURE
-            if any(k in low for k in ["picture", "image", "draw", "generate"]):
-                clean = low.replace("picture of","").replace("picture","").replace("image","").replace("draw","").replace("generate","").strip() or "future executive technology"
-                q = urllib.parse.quote(clean)
-                image_url = f"https://image.pollinations.ai/prompt/{q}?width=800&height=800&nologo=true"
-                full_text = f"Here is {clean} — created by SI:"
-                placeholder.markdown(full_text)
-                st.image(image_url)
-                full_text += "\n\nSI Executive 🧠"
+            q = prompt.replace("search:", "")
+            with DDGS() as ddgs:
+                results = list(ddgs.text(q, max_results=3))
+                search_context = "\n".join([r['body'] for r in results])
+        except:
+            search_context = ""
 
-            # SEARCH FEATURE
-            elif low.startswith("search:"):
-                sq = prompt.replace("search:","").strip()
-                placeholder.markdown(f"🔍 Searching: {sq}...")
-                results = DDGS().text(sq, max_results=3)
-                context = "\n".join([r['body'] for r in results])
-                comp = client.chat.completions.create(
-                    model="openai/gpt-oss-20b",
-                    messages=[{"role":"system","content":SYS + f"\nWeb results:\n{context}"},{"role":"user","content":prompt}]
-                )
-                full_text = comp.choices[0].message.content
-                placeholder.markdown(full_text)
+    final_prompt = f"{SYS}\nWeb results: {search_context}\nUser: {prompt}" if search_context else f"{SYS}\nUser: {prompt}"
 
-            # PHOTO READING
-            elif b64_image:
-                placeholder.markdown("👁️ SI is reading your photo...")
-                comp = client.chat.completions.create(
-                    model="meta-llama/llama-4-scout-17b-16e-instruct",
-                    messages=[
-                        {"role":"system","content":SYS},
-                        {"role":"user","content":[
-                            {"type":"text","text":prompt},
-                            {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64_image}"}}
-                        ]}
-                    ]
-                )
-                full_text = comp.choices[0].message.content
-                placeholder.markdown(full_text)
-
-            # NORMAL CHAT
-            else:
-                stream = client.chat.completions.create(
-                    model="openai/gpt-oss-20b",
-                    messages=[{"role":"system","content":SYS}] + st.session_state.messages,
-                    stream=True
-                )
-                for chunk in stream:
-                    if chunk.choices[0].delta.content:
-                        full_text += chunk.choices[0].delta.content
-                        placeholder.markdown(full_text + "▌")
-                placeholder.markdown(full_text)
-
-        except Exception as e:
-            full_text = f"SI error: {e}"
-            placeholder.markdown(full_text)
-
-        # Save
-        msg = {"role":"assistant","content":full_text}
-        if image_url:
-            msg["image_url"] = image_url
-        st.session_state.messages.append(msg)
-
-        st.link_button("📤 Share on WhatsApp", f"https://wa.me/?text={urllib.parse.quote(full_text[:800])}")
-
-        # Voice
-        if voice_on and full_text:
-            try:
-                tts = gTTS(text=full_text[:300], lang='en', tld='com')
-                fp = io.BytesIO()
-                tts.write_to_fp(fp)
-                st.audio(fp.getvalue(), format='audio/mp3')
-            except:
-                pass
+    # Groq call
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=[{"role": "system", "content": SYS}, {"role": "user", "content": final_prompt}],
+            model="llama-3.3-70b-versatile",
+        )
+        answer = chat_completion.choices[0].message.content
+        st.session_state.messages.append({"role": "assistant", "content": answer})
+        st.chat_message("assistant").write(answer)
+    except Exception as e:
+        st.error(f"Error: {e}")
