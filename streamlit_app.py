@@ -1,149 +1,158 @@
 import streamlit as st
 from groq import Groq
-import base64
-import urllib.parse
+import base64, urllib.parse, datetime, io
 from duckduckgo_search import DDGS
-import datetime
 from gtts import gTTS
-import io
 
-st.set_page_config(page_title="Bible Bot Ghana Final", page_icon="📖", layout="centered")
+st.set_page_config(page_title="SI - Stephen's Intelligence", page_icon="🧠", layout="centered")
 
+# API
 try:
     api_key = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=api_key)
 except:
-    st.error("Add GROQ_API_KEY in Streamlit Secrets")
+    st.error("Add GROQ_API_KEY in Streamlit Secrets"); st.stop()
+
+# Login
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    st.title("SI 🔐")
+    st.subheader("Stephen's Intelligence")
+    st.caption("Executive AI - Built by Stephen")
+    pw = st.text_input("Password:", type="password")
+    if st.button("Enter SI"):
+        if pw == "SI2026":
+            st.session_state.logged_in = True
+            st.rerun()
+        else:
+            st.error("Wrong! Ask Stephen for password")
     st.stop()
 
-st.title("📖 Bible Bot Ghana 🇬🇭 FINAL")
-st.caption("Pictures 🖼️ | Reads Photos 👁️ | Search 🔍 | Voice 🔊 | WhatsApp 💬")
+# Main App
+st.title("SI 🧠")
+st.caption("Stephen's Intelligence - Executive AI")
 
 if "user_name" not in st.session_state:
     st.session_state.user_name = ""
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Maakye Stephen! Final Level active! Wo ho te sɛn? I can now do EVERYTHING — picture, read, search, voice, WhatsApp. What's your name?"}
+        {"role": "assistant", "content": "Akwaaba! I am SI - Stephen's Intelligence. Built by Stephen. I speak Twi, create pictures, search web, and read photos. What's your name?"}
     ]
 
 with st.sidebar:
-    st.markdown("### 🧠 Memory")
-    name_input = st.text_input("Your name:", value=st.session_state.user_name)
-    if name_input:
-        st.session_state.user_name = name_input
-        st.success(f"Remembered: {name_input} ✅")
+    st.markdown("### SI\nStephen's Intelligence")
+    name = st.text_input("Your Name:", value=st.session_state.user_name)
+    if name:
+        st.session_state.user_name = name
 
-    st.divider()
-    st.markdown("### 📤 Upload to READ")
-    uploaded = st.file_uploader("Upload Bible page / photo", type=["jpg","png","jpeg"])
-    uploaded_base64 = None
+    uploaded = st.file_uploader("📤 Upload Photo", type=["jpg","png","jpeg"])
+    b64_image = None
     if uploaded:
         st.image(uploaded)
-        uploaded_base64 = base64.b64encode(uploaded.getvalue()).decode('utf-8')
-        st.info("Now ask: what does this say?")
+        b64_image = base64.b64encode(uploaded.getvalue()).decode()
 
-    st.divider()
-    voice_on = st.checkbox("🔊 Voice On", value=True)
-    if st.button("Clear Chat 🗑️"):
-        st.session_state.messages = [st.session_state.messages[0]]
+    voice_on = st.checkbox("🔊 Voice Answer", True)
+    st.markdown("---")
+    st.markdown("💎 SI Executive\nBuilt by Stephen")
+    st.markdown("💰 MoMo: 055XXXXXXX")
+    if st.button("Logout"):
+        st.session_state.logged_in = False
         st.rerun()
 
-# Display chats
+# Show history
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
         if "image_url" in m:
             st.image(m["image_url"])
         if m["role"] == "assistant":
-            share_text = urllib.parse.quote(m["content"][:800])
-            st.link_button("📤 Share to WhatsApp", f"https://wa.me/?text={share_text}")
+            st.link_button("📤 Share on WhatsApp", f"https://wa.me/?text={urllib.parse.quote(m['content'][:800])}")
 
-SYSTEM_PROMPT = f"You are Bible Bot Ghana Final. User: {st.session_state.user_name or 'Friend'}. Speak Twi if asked, warm Ghanaian style. Short answers. Date: {datetime.datetime.now().strftime('%A %d %B %Y')}"
+SYS = f"You are SI - Stephen's Intelligence, built by Stephen. Your name is SI, never say you are Meta AI or Bible Bot. User name is {st.session_state.user_name or 'Friend'}. Speak warm, smart, mix Twi and English. Be executive, helpful. Date: {datetime.datetime.now()}"
 
-if prompt := st.chat_input("Ask, picture, search:, or about photo..."):
+if prompt := st.chat_input("Ask SI anything..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
         placeholder = st.empty()
-        full = ""
+        full_text = ""
         image_url = None
-
         try:
-            # PICTURE
-            if any(k in prompt.lower() for k in ["picture","image","draw","show me"]):
-                clean = prompt.lower().replace("picture of","").replace("picture","").replace("image of","").replace("draw","").strip()
-                if not clean:
-                    clean = "Jesus blessing children Ghana"
-                query = urllib.parse.quote(clean)
-                image_url = f"https://image.pollinations.ai/prompt/{query}?width=800&height=800&nologo=true"
-                full = f"{st.session_state.user_name}, here's **{clean}**:"
-                placeholder.markdown(full)
+            low = prompt.lower()
+            # PICTURE FEATURE
+            if any(k in low for k in ["picture", "image", "draw", "generate"]):
+                clean = low.replace("picture of","").replace("picture","").replace("image","").replace("draw","").replace("generate","").strip() or "future executive technology"
+                q = urllib.parse.quote(clean)
+                image_url = f"https://image.pollinations.ai/prompt/{q}?width=800&height=800&nologo=true"
+                full_text = f"Here is {clean} — created by SI:"
+                placeholder.markdown(full_text)
                 st.image(image_url)
-                full += "\n\nPsalm 19:1 - The heavens declare God's glory! 🙏"
+                full_text += "\n\nSI Executive 🧠"
 
-            # SEARCH
-            elif prompt.lower().startswith("search:"):
-                search_q = prompt.replace("search:","").strip()
-                placeholder.markdown(f"🔍 Searching: {search_q}...")
-                results = DDGS().text(search_q, max_results=3)
+            # SEARCH FEATURE
+            elif low.startswith("search:"):
+                sq = prompt.replace("search:","").strip()
+                placeholder.markdown(f"🔍 Searching: {sq}...")
+                results = DDGS().text(sq, max_results=3)
                 context = "\n".join([r['body'] for r in results])
                 comp = client.chat.completions.create(
                     model="openai/gpt-oss-20b",
-                    messages=[{"role":"system","content": SYSTEM_PROMPT + f"\nWeb info: {context}"},{"role":"user","content":prompt}]
+                    messages=[{"role":"system","content":SYS + f"\nWeb results:\n{context}"},{"role":"user","content":prompt}]
                 )
-                full = comp.choices[0].message.content
-                placeholder.markdown(full)
+                full_text = comp.choices[0].message.content
+                placeholder.markdown(full_text)
 
-            # READ PHOTO
-            elif uploaded_base64:
-                placeholder.markdown("👁️ Reading your photo...")
+            # PHOTO READING
+            elif b64_image:
+                placeholder.markdown("👁️ SI is reading your photo...")
                 comp = client.chat.completions.create(
                     model="meta-llama/llama-4-scout-17b-16e-instruct",
                     messages=[
-                        {"role":"system","content": SYSTEM_PROMPT},
+                        {"role":"system","content":SYS},
                         {"role":"user","content":[
                             {"type":"text","text":prompt},
-                            {"type":"image_url","image_url":{"url": f"data:image/jpeg;base64,{uploaded_base64}"}}
+                            {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64_image}"}}
                         ]}
                     ]
                 )
-                full = comp.choices[0].message.content
-                placeholder.markdown(full)
+                full_text = comp.choices[0].message.content
+                placeholder.markdown(full_text)
 
             # NORMAL CHAT
             else:
                 stream = client.chat.completions.create(
                     model="openai/gpt-oss-20b",
-                    messages=[{"role":"system","content":SYSTEM_PROMPT}] + st.session_state.messages,
-                    temperature=0.7, max_tokens=700, stream=True
+                    messages=[{"role":"system","content":SYS}] + st.session_state.messages,
+                    stream=True
                 )
                 for chunk in stream:
                     if chunk.choices[0].delta.content:
-                        full += chunk.choices[0].delta.content
-                        placeholder.markdown(full + "▌")
-                placeholder.markdown(full)
+                        full_text += chunk.choices[0].delta.content
+                        placeholder.markdown(full_text + "▌")
+                placeholder.markdown(full_text)
 
         except Exception as e:
-            full = f"Error: {e}"
-            placeholder.markdown(full)
+            full_text = f"SI error: {e}"
+            placeholder.markdown(full_text)
 
         # Save
-        msg = {"role":"assistant","content":full}
+        msg = {"role":"assistant","content":full_text}
         if image_url:
             msg["image_url"] = image_url
         st.session_state.messages.append(msg)
 
-        # Buttons + Voice
-        share_text = urllib.parse.quote(full[:800])
-        st.link_button("📤 Share to WhatsApp", f"https://wa.me/?text={share_text}")
+        st.link_button("📤 Share on WhatsApp", f"https://wa.me/?text={urllib.parse.quote(full_text[:800])}")
 
-        if voice_on and full:
+        # Voice
+        if voice_on and full_text:
             try:
-                tts = gTTS(text=full[:300], lang='en', tld='com.gh')
-                audio_fp = io.BytesIO()
-                tts.write_to_fp(audio_fp)
-                st.audio(audio_fp.getvalue(), format='audio/mp3')
+                tts = gTTS(text=full_text[:300], lang='en', tld='com')
+                fp = io.BytesIO()
+                tts.write_to_fp(fp)
+                st.audio(fp.getvalue(), format='audio/mp3')
             except:
                 pass
