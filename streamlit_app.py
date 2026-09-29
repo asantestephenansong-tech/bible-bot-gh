@@ -1,4 +1,4 @@
-import streamlit as st
+SYS streamlit as st
 from groq import Groq
 import base64, urllib.parse, datetime, io
 from duckduckgo_search import DDGS
@@ -70,9 +70,8 @@ for m in st.session_state.messages:
         if m["role"] == "assistant":
             st.link_button("📤 Share on WhatsApp", f"https://wa.me/?text={urllib.parse.quote(m['content'][:800])}")
 
-SYS = f"You are SI - Stephen's Intelligence, built by Stephen. Your name is SI, never say you are Meta AI or Bible Bot. User name is {st.session_state.user_name or 'Friend'}. Speak warm, smart, mix Twi and English. Be executive, helpful. Date: {datetime.datetime.now()}"
-
-if prompt := st.chat_input("Ask SI anything..."):
+SYS=f"You are SI - Stephen's Intelligence, built by Stephen. Your name is SI, never say Meta AI. Current Ghana President is John Mahama (since Jan 7 2025), not Akufo-Addo. Nigeria President is Tinubu. Always use web search for politics, presidents, prices. User: {st.session_state.user_name or 'Friend'}. Date: {datetime.datetime.now()}"
+if proprompt st.chat_input("Ask SI anything..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
