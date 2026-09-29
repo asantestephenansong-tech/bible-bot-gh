@@ -67,7 +67,17 @@ for i, m in enumerate(st.session_state.messages):
             with col2:
                 if voice_on and m["content"]:
                     try:
-                        tts = gTTS(text=m["content"][:300], lang='en', slow=False)
+                            with col2:
+        if voice_on:
+            try:
+                # Ghana Twi voice - com.gh accent
+                tts = gTTS(text=full[:300], lang='en', tld='com.gh')
+                audio_fp = io.BytesIO()
+                tts.write_to_fp(audio_fp)
+                st.audio(audio_fp.getvalue(), format='audio/mp3')
+                st.caption("🔊 Voice: Ghana Accent 🇬🇭")
+            except:
+                pass
                         audio_fp = io.BytesIO()
                         tts.write_to_fp(audio_fp)
                         st.audio(audio_fp.getvalue(), format='audio/mp3')
