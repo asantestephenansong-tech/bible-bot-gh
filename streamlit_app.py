@@ -78,7 +78,7 @@ if prompt := st.chat_input("Ask SI anything..."):
     try:
         chat_completion = client.chat.completions.create(
             messages=[{"role": "system", "content": SYS}, {"role": "user", "content": final_prompt}],
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
         )
         answer = chat_completion.choices[0].message.content
         st.session_state.messages.append({"role": "assistant", "content": answer})
