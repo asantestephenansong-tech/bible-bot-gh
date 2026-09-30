@@ -59,12 +59,17 @@ with st.sidebar:
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
-        st.write(m["content"])
-        if "pollinations.ai" in m["content"]:
+        # Hide IMAGE_URL from text display
+        clean_text = m["content"].split("IMAGE_URL:")[0] if "IMAGE_URL:" in m["content"] else m["content"]
+        st.write(clean_text)
+        # Show image if present
+        if "IMAGE_URL:" in m["content"]:
             try:
-                url = m["content"].split("IMAGE_URL:")[1].split()[0] if "IMAGE_URL:" in m["content"] else None
-                if url and url.startswith("http"): st.image(url)
-            except: pass
+                url = m["content"].split("IMAGE_URL:")[1].strip().split()[0].split("\n")[0]
+                if url.startswith("http"):
+                    st.image(url, use_column_width=True)
+            except:
+                pass
 
 prompt = st.chat_input(f"Ask anything, upload file, or say 'picture of...'")
 
@@ -113,7 +118,7 @@ if prompt or file_context:
                 img_prompt = img_prompt.strip() or user_text
                 encoded = urllib.parse.quote(img_prompt + ", highly detailed, 8k")
                 image_url = f"https://image.pollinations.ai/prompt/{encoded}?width=1024&height=1024&nologo=true&seed={abs(hash(user_text))%10000}"
-                st.image(image_url, caption=img_prompt)
+                st.image(image_url, caption=img_prompt, use_column_width=True)
                 reply = f"Here is your image: **{img_prompt}** 🌍🖼️"
                 st.write(reply)
                 st.session_state.messages.append({"role": "assistant", "content": f"{reply}\nIMAGE_URL:{image_url}"})
