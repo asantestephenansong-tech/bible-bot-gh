@@ -89,4 +89,61 @@ for m in st.session_state.messages:
         # Voice button for assistant messages
         if m["role"] == "assistant" and len(m["content"]) < 400:
             try:
-                tts = gTTS(text=m["content"][:350], lang='en',
+                tts = gTTS(text=m["content"][:350], lang='en', tld='com')
+                fp = io.BytesIO()
+                tts.write_to_fp(fp)
+                st.audio(fp.getvalue(), format='audio/mp3')
+            except:
+                pass
+
+# --- CHAT INPUT ---
+prompt = st.chat_input(f"Ask SI anything, {st.session_state.user_name}...")
+
+if prompt:
+    # Show user message
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.write(prompt)
+
+    # --- SMART SEARCH (Auto for important topics) ---
+    search_context = ""
+    need_search = any(k in prompt.lower() for k in ["president", "who is", "current", "today", "news", "price", "score", "minister", "election", "mahama", "akufo", "tinubu", "2025", "2026"])
+    if prompt.lower().startswith("search:") or need_search:
+        try:
+            q = prompt.replace("search:", "").strip()
+            with st.spinner("🔍 SI dey search web..."):
+                with DDGS() as ddgs:
+                    results = list(ddgs.text(q, max_results=4))
+                    search_context = "\n".join([f"- {r['title']}: {r['body']}" for r in results])
+        except:
+            search_context = ""
+
+    # --- BUILD FINAL PROMPT ---
+    if search_context:
+        final_user_prompt = f"Web Search Results:\n{search_context}\n\nUser Question: {prompt}\nAnswer using search results, mention you searched."
+    else:
+        final_user_prompt = prompt
+
+    # --- GROQ CALL - FINAL MODEL THAT WORKS ---
+    try:
+        with st.chat_message("assistant"):
+            with st.spinner("SI dey think... 🧠"):
+                completion = client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": SYS},
+                        {"role": "user", "content": final_user_prompt}
+                    ],
+                    model="openai/gpt-oss-20b", # NEW FREE WORKING MODEL 2026
+                    temperature=0.7,
+                    max_tokens=800,
+                )
+                answer = completion.choices[0].message.content
+                st.write(answer)
+                st.session_state.messages.append({"role": "assistant", "content": answer})
+    except Exception as e:
+        st.error(f"Error: {e}")
+        st.info("Try again, boss. If it persists, check Groq API quota.")
+
+# --- FOOTER FEELING ---
+st.divider()
+st.caption(f"SI loves you, {st.session_state.user_name} ❤️ | Built by Stephen | {TODAY}")
