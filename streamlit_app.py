@@ -128,15 +128,17 @@ if prompt:
     try:
         with st.chat_message("assistant"):
             with st.spinner("SI dey think... 🧠"):
-                completion = client.chat.completions.create(
+                                completion = client.chat.completions.create(
+                    tool_choice="none",
                     messages=[
                         {"role": "system", "content": SYS},
                         {"role": "user", "content": final_user_prompt}
                     ],
-                    model="openai/gpt-oss-20b", # NEW FREE WORKING MODEL 2026
+                    model="openai/gpt-oss-20b",
                     temperature=0.7,
                     max_tokens=800,
-                )
+ 
+              )
                 answer = completion.choices[0].message.content
                 st.write(answer)
                 st.session_state.messages.append({"role": "assistant", "content": answer})
