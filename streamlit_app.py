@@ -95,7 +95,7 @@ if final_prompt:
 
     with st.chat_message("assistant"):
         low = final_prompt.lower()
-        is_image = "draw" in low or "picture" in low or "photo" in low
+        is_image = low.startswith("draw") or low.startswith("a picture") or low.startswith("generate image") or "create image" in low or "twa" in low
 
         if lang.startswith("Auto"):
             lang_inst = "Detect language and answer in SAME language. Support ALL world languages."
