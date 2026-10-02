@@ -57,51 +57,40 @@ for m in st.session_state.messages:
         else:
             st.markdown(m["content"])
 
-# --- CHAT INPUT ---
-if prompt := st.chat_input("Ask SI anything... (e.g. draw an ant, brother in french, latest news)"):
+# --- CHAT INPUT - MOBILE FIX ---
+col1, col2 = st.columns([4,1])
+with col1:
+    prompt = st.text_input("Ask SI:", placeholder="Ask SI anything...", label_visibility="collapsed", key="input_box")
+with col2:
+    send = st.button("SEND 🚀", use_container_width=True)
 
+if send and prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        # 1. IMAGE FEATURE
-        is_image = any(k in prompt.lower() for k in ["draw","picture","image","photo","generate","logo","flyer","ant"])
+        is_image = any(k in prompt.lower() for k in ["draw","picture","image","photo","logo"])
         if is_image and image_on:
-            with st.spinner("🎨 SI drawing..."):
-                url = gen_image(prompt)
-                st.image(url, caption=prompt)
-                st.session_state.messages.append({"role":"assistant","type":"image","content":url,"caption":prompt})
+            url = gen_image(prompt)
+            st.image(url, caption=prompt)
+            st.session_state.messages.append({"role":"assistant","type":"image","content":url,"caption":prompt})
         else:
-            # 2. WEB SEARCH + CHAT FEATURE
             context = ""
-            if search_on and len(prompt.split()) > 2:
-                with st.spinner("🌐 SI searching..."):
+            if search_on:
+                with st.spinner("Searching..."):
                     context = search_web(prompt)
 
-            system = f"""
-            You are SI — Stephen's Intelligence, Global AI built by Stephen Asante in Ghana.
-            You are like Meta AI: you speak ALL languages (Twi, Ewe, Ga, French, English, Spanish...), auto-detect user language and reply in same language.
-            You are warm, Ghanaian, smart, concise.
-            User: {st.session_state.user_name}
-            Date: {datetime.datetime.now()}
-            WEB CONTEXT (if any): {context}
-            Answer helpfully. If WEB CONTEXT exists, use it.
-            """
-
+            system = f"You are SI built by Stephen in Ghana. User {st.session_state.user_name}. Date {datetime.datetime.now()}. Web: {context}. Reply in user language."
             try:
-                # Use WORKING model - no more 404!
                 completion = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
-                    messages=[{"role":"system","content":system}] +
-                             [{"role": x["role"], "content": x["content"]} for x in st.session_state.messages if x.get("type")!="image"][-8:],
-                    temperature=0.7,
-                    max_tokens=1200
+                    messages=[{"role":"system","content":system}] + [{"role": x["role"], "content": x["content"]} for x in st.session_state.messages if x.get("type")!="image"][-6:],
+                    max_tokens=1000
                 )
                 ans = completion.choices[0].message.content
                 st.markdown(ans)
                 st.session_state.messages.append({"role":"assistant","content":ans})
             except Exception as e:
-                st.error(f"Error: {e}. Try again.")
-
-st.markdown("<br><br>", unsafe_allow_html=True)
+                st.error(f"Error: {e}")
+    st.rerun()
