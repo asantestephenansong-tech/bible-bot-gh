@@ -48,3 +48,5 @@ if prompt:
                 st.session_state.messages.append({"role":"assistant","content":ans})
             except Exception as e:
                 st.error(f"Error: {e}")
+🌍 Language: [Auto-detect ▼]
+Options: Auto-detect, English, Twi, Ga, Ewe, Hausa, French, Spanish, Arabic...
