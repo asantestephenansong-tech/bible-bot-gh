@@ -19,7 +19,7 @@ if "last_voice_id" not in st.session_state:
 def clean_text(t):
     t = re.sub(r'\*\*|__|\*|#|•|`', ' ', t)
     t = re.sub(r'https?://\S+', ' ', t)
-    return t[:400].replace("'", "").replace('"','').replace("\n"," ")
+    return t[:400].replace("'", "").replace('"', '').replace("\n", " ")
 
 ALL_LANGS = [
     "Auto-detect (ANY language)",
@@ -30,26 +30,38 @@ ALL_LANGS = [
 ]
 
 LANG_VOICE = {
-    "English":"en-US", "Twi (Akan)":"en-GH", "Ga":"en-GH", "Ewe":"en-GH", "Hausa":"en-NG",
-    "French":"fr-FR", "Spanish":"es-ES", "Portuguese":"pt-PT", "German":"de-DE",
-    "Russian":"ru-RU", "Arabic":"ar-SA", "Hindi":"hi-IN", "Chinese":"zh-CN",
-    "Japanese":"ja-JP", "Korean":"ko-KR", "Swahili":"sw-KE", "Yoruba":"yo-NG"
+    "English": "en-US",
+    "Twi (Akan)": "en-GH",
+    "Ga": "en-GH",
+    "Ewe": "en-GH",
+    "Hausa": "en-NG",
+    "French": "fr-FR",
+    "Spanish": "es-ES",
+    "Portuguese": "pt-PT",
+    "German": "de-DE",
+    "Russian": "ru-RU",
+    "Arabic": "ar-SA",
+    "Hindi": "hi-IN",
+    "Chinese": "zh-CN",
+    "Japanese": "ja-JP",
+    "Korean": "ko-KR",
+    "Swahili": "sw-KE",
+    "Yoruba": "yo-NG"
 }
 
 with st.sidebar:
     st.title("🌍 SI Controls")
-    lang = st.selectbox("Answer Language", ALL_LANGS, index=0, key="lang_v41")
-    speak = st.checkbox("🔊 Speak Answer", value=True, key="speak_v41")
+    lang = st.selectbox("Answer Language", ALL_LANGS, index=0, key="lang_v43")
+    speak = st.checkbox("🔊 Speak Answer", value=True, key="speak_v43")
     st.divider()
-    if st.button("🗑️ Clear Chat - Fix Loop", key="clear_v41"):
+    if st.button("🗑️ Clear Chat", key="clear_v43"):
         st.session_state.messages = []
         st.session_state.last_voice_id = None
         st.rerun()
 
 st.title("SI Worldwide 🌍")
-st.caption("V4.1 - All Languages - Voice + Type Fixed")
+st.caption("V4.3 - All Languages Fixed")
 
-# Show messages
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         if m.get("type") == "image":
@@ -57,15 +69,11 @@ for m in st.session_state.messages:
         else:
             st.markdown(m["content"])
 
-# --- INPUT AREA ---
-# 1. Voice input (with loop fix)
-audio = st.audio_input("🎤 Tap to speak", key="audio_v41")
+audio = st.audio_input("🎤 Tap to speak", key="audio_v43")
 
 voice_prompt = None
 if audio:
-    # Create unique ID for this audio to avoid re-processing
     audio_id = audio.file_id if hasattr(audio, 'file_id') else str(len(audio.getvalue()))
-    
     if audio_id != st.session_state.last_voice_id:
         with st.spinner("Listening..."):
             try:
@@ -76,29 +84,22 @@ if audio:
                     response_format="text"
                 )
                 voice_prompt = tr
-                st.session_state.last_voice_id = audio_id  # Mark as processed
+                st.session_state.last_voice_id = audio_id
             except Exception as e:
                 st.error(f"{e}")
-    else:
-        st.info("✅ Voice already processed. Clear chat or type new message.")
 
-# 2. Text input - NOW WILL WORK
-prompt = st.chat_input("Type in ANY language here and press send →", key="chat_v41")
-
+prompt = st.chat_input("Type in ANY language here and press send →", key="chat_v43")
 final_prompt = voice_prompt if voice_prompt else prompt
 
 if final_prompt:
-    # Add user message
     st.session_state.messages.append({"role": "user", "content": final_prompt})
     with st.chat_message("user"):
         st.markdown(final_prompt)
-
     with st.chat_message("assistant"):
         low = final_prompt.lower()
-# Smart: is it a picture request? But NOT a meaning question
-is_meaning_question = "what is" in low or "meaning" in low or "translate" in low or "means" in low
-is_image_request = ("draw" in low or "picture" in low or "photo" in low or "image" in low or "twa" in low)
-is_image = is_image_request and not is_meaning_question
+        is_meaning_question = "what is" in low or "meaning" in low or "translate" in low or "means" in low
+        is_image_request = ("draw" in low or "picture" in low or "photo" in low or "image" in low or "twa" in low)
+        is_image = is_image_request and not is_meaning_question
 
         if lang.startswith("Auto"):
             lang_inst = "Detect language and answer in SAME language. Support ALL world languages."
@@ -118,15 +119,13 @@ is_image = is_image_request and not is_meaning_question
                 )
                 ans = r.choices[0].message.content
                 st.markdown(ans)
-
                 if speak:
                     vcode = LANG_VOICE.get(lang, "en-US")
                     js = f"<script>var m=new SpeechSynthesisUtterance('{clean_text(ans)}');m.lang='{vcode}';speechSynthesis.speak(m);</script>"
                     components.html(js, height=0)
-
                 st.session_state.messages.append({"role": "assistant", "content": ans})
                 wa2 = urllib.parse.quote(f"{ans[:500]} - https://si-worldwide.streamlit.app")
-                st.link_button("📱 Share to WhatsApp", f"https://wa.me/?text={wa2}", key=f"wa{len(st.session_state.messages)}_v41")
+                st.link_button("📱 Share to WhatsApp", f"https://wa.me/?text={wa2}", key=f"wa{len(st.session_state.messages)}_v43")
             except Exception as e:
                 st.error(f"Error: {e}")
     st.rerun()
