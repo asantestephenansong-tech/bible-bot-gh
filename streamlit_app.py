@@ -95,7 +95,10 @@ if final_prompt:
 
     with st.chat_message("assistant"):
         low = final_prompt.lower()
-        is_image = low.startswith("draw") or low.startswith("a picture") or low.startswith("generate image") or "create image" in low or "twa" in low
+# Smart: is it a picture request? But NOT a meaning question
+is_meaning_question = "what is" in low or "meaning" in low or "translate" in low or "means" in low
+is_image_request = ("draw" in low or "picture" in low or "photo" in low or "image" in low or "twa" in low)
+is_image = is_image_request and not is_meaning_question
 
         if lang.startswith("Auto"):
             lang_inst = "Detect language and answer in SAME language. Support ALL world languages."
