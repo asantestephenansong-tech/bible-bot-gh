@@ -106,9 +106,11 @@ if final_prompt:
         else:
             lang_inst = f"Respond ONLY in {lang}."
 
-        if is_image:
-            url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(final_prompt)}?width=1024&height=1024&nologo=true"
-            st.image(url)
+                if is_image:
+            # Clean "I want a picture of" -> just "motorbike"
+            clean_prompt = final_prompt.lower().replace("i want a picture of", "").replace("i want", "").replace("picture of", "").replace("a picture", "").replace("draw", "").strip()
+            if clean_prompt == "": clean_prompt = final_prompt
+            url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(clean_prompt)}?width=1024&height=1024&seed={len(clean_prompt)}&nologo=true&enhance=true"
             st.session_state.messages.append({"role": "assistant", "type": "image", "content": url})
         else:
             try:
