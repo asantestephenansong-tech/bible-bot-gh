@@ -59,7 +59,7 @@ if prompt:
                     history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages if m.get("type")!= "image"][-8:]
 
                     response = client.chat.completions.create(
-                        model="llama3-8b-8192",
+                        model="llama-3.1-8b-instant",
                         messages=[{"role": "system", "content": system_prompt}] + history,
                         max_tokens=1000,
                         temperature=0.7
