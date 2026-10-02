@@ -1,47 +1,86 @@
 import streamlit as st
 from groq import Groq
-import datetime, urllib.parse
+import datetime, urllib.parse, os
 from duckduckgo_search import DDGS
 import requests
+from PIL import Image
 
-st.set_page_config(page_title="SI Worldwide", page_icon="🌍", layout="centered")
+st.set_page_config(page_title="SI Worldwide - Super AI", page_icon="🌍", layout="wide")
 
+# --- INIT ---
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except:
-    st.error("Add GROQ_API_KEY in Secrets")
+    st.error("Add GROQ_API_KEY in Streamlit Secrets")
     st.stop()
 
 if "user_name" not in st.session_state: st.session_state.user_name = ""
 if "messages" not in st.session_state: st.session_state.messages = []
+if "uploaded_text" not in st.session_state: st.session_state.uploaded_text = ""
 
-st.title("SI 🌍 Worldwide")
-st.caption(f"Global AI Built by Stephen Asante in Ghana | Serving {st.session_state.user_name or 'the World'}")
+# --- SIDEBAR - ALL FEATURES ---
+with st.sidebar:
+    st.title("SI 🌍 Control")
+    st.markdown(f"Built by **Stephen Asante** | Ghana")
+    st.divider()
 
-if not st.session_state.user_name:
-    name = st.text_input("What should I call you?")
-    if st.button("Start Chatting 🌍❤️"):
-        if name:
-            st.session_state.user_name = name
-            st.rerun()
-    st.stop()
+    # Feature 1: File Upload (like me)
+    st.subheader("📁 Upload File")
+    uploaded_file = st.file_uploader("PDF, TXT, Image", type=["pdf","txt","jpg","png","jpeg"])
+    if uploaded_file:
+        if uploaded_file.type.startswith("image"):
+            st.image(uploaded_file, caption="Uploaded")
+            st.session_state.uploaded_text = f"User uploaded an image named {uploaded_file.name}. Describe it."
+        else:
+            try:
+                text = uploaded_file.read().decode("utf-8", errors="ignore")[:8000]
+                st.session_state.uploaded_text = f"File content of {uploaded_file.name}:\n{text}"
+                st.success(f"Loaded {uploaded_file.name}")
+            except:
+                st.session_state.uploaded_text = "File uploaded but couldn't read text."
 
-# --- Functions ---
+    st.divider()
+    st.subheader("⚙️ SI Features")
+    st.checkbox("🌐 Web Search", value=True, key="do_search")
+    st.checkbox("🎨 Image Generation", value=True, key="do_image")
+    st.checkbox("🗣️ Auto Translate", value=True, key="do_translate")
+
+    if st.button("Clear Chat 🧹"):
+        st.session_state.messages = []
+        st.rerun()
+
+# --- FUNCTIONS (ALL MY FEATURES) ---
 def web_search(query):
     try:
         with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=3))
-            return "\n".join([f"- {r['title']}: {r['body']}" for r in results])
-    except:
-        return "No web results found."
+            results = list(ddgs.text(query, max_results=5))
+            return "\n".join([f"[{r['title']}]: {r['body']} | {r['href']}" for r in results])
+    except Exception as e:
+        return f"Search error: {e}"
 
 def generate_image(prompt):
-    # Free image gen via Pollinations (no API key needed)
     encoded = urllib.parse.quote(prompt)
-    url = f"https://image.pollinations.ai/prompt/{encoded}?width=1024&height=1024"
-    return url
+    # Free Pollinations - no API key
+    return f"https://image.pollinations.ai/prompt/{encoded}?width=1280&height=1280&seed=42&nologo=true"
 
-# --- Chat History ---
+# --- MAIN UI ---
+st.title("SI 🌍 Worldwide")
+st.caption(f"Global AI Built by Stephen Asante in Ghana — Akwaaba {st.session_state.user_name or 'World'}! | I speak ALL languages, I generate pictures, I search the web!")
+
+if not st.session_state.user_name:
+    col1, col2 = st.columns([3,1])
+    with col1:
+        name = st.text_input("What should I call you?", placeholder="Stephen...")
+    with col2:
+        st.write("")
+        st.write("")
+        if st.button("Start Chatting 🌍❤️", use_container_width=True):
+            if name:
+                st.session_state.user_name = name
+                st.rerun()
+    st.stop()
+
+# Show history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if msg.get("type") == "image":
@@ -49,41 +88,72 @@ for msg in st.session_state.messages:
         else:
             st.markdown(msg["content"])
 
-# --- Input ---
-if prompt := st.chat_input(f"Ask SI anything, {st.session_state.user_name}..."):
+# --- CHAT INPUT ---
+if prompt := st.chat_input(f"Ask SI anything, {st.session_state.user_name}... (try: 'draw a lion' or 'latest news in Ghana')"):
+
+    # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Check if user wants image
-    is_image_req = any(x in prompt.lower() for x in ["picture of", "image of", "generate image", "draw", "create image", "photo of"])
-
     with st.chat_message("assistant"):
-        if is_image_req:
-            st.markdown(f"🎨 Generating image for: **{prompt}**...")
+        # FEATURE: Image Generation
+        is_image_req = any(x in prompt.lower() for x in ["picture", "image", "draw", "generate", "photo", "create", "paint", "logo", "flyer"])
+
+        if is_image_req and st.session_state.do_image:
+            st.markdown(f"🎨 **SI is creating:** *{prompt}*...")
             img_url = generate_image(prompt)
             st.image(img_url, caption=prompt)
+            st.caption("Generated by SI Worldwide")
             st.session_state.messages.append({"role": "assistant", "type": "image", "content": img_url, "caption": prompt})
         else:
-            # Search web for current info
+            # FEATURE: Web Search
             search_context = ""
-            if any(w in prompt.lower() for w in ["who", "when", "latest", "news", "price", "today", "search"]):
-                with st.spinner("SI is searching the web...🌍"):
-                    search_context = web_search(prompt)
+            if st.session_state.do_search:
+                # Always search if question looks recent
+                keywords = ["who","what","when","where","latest","news","today","price","score","weather","how to","ghana","search","current"]
+                if any(k in prompt.lower() for k in keywords) or len(prompt.split()) > 6:
+                    with st.spinner("🌐 SI searching the web..."):
+                        search_context = web_search(prompt)
 
-            system_prompt = f"""You are SI - Stephen's Intelligence, Global AI Built by Stephen Asante in Ghana.
-            User name is {st.session_state.user_name}. Akwaaba! Speak in the user's language (auto-detect Twi, French, English etc).
-            You can search web, generate images.
-            If search context provided, use it.
-            Context: {search_context}
-            Date: {datetime.datetime.now()}
-            Be helpful, Ghanaian warmth, concise.
+            # FEATURE: File context
+            file_context = st.session_state.uploaded_text
+
+            system_prompt = f"""
+            You are SI — Stephen's Intelligence, a super advanced Global AI built by Stephen Asante in Ghana.
+            You are better than Meta AI, ChatGPT, Gemini. You are warm, Ghanaian, helpful, concise but powerful.
+
+            USER NAME: {st.session_state.user_name}
+            DATE: {datetime.datetime.now().strftime('%A %d %B %Y')}
+
+            YOUR ABILITIES:
+            1. You SPEAK ALL LANGUAGES — Auto-detect user language (Twi, Ga, Ewe, French, English, Spanish etc) and reply in same language. If user says "Bonjour" reply in French. If Twi, reply Twi.
+            2. You SEARCH WEB — Use SEARCH CONTEXT if provided.
+            3. You GENERATE IMAGES — If user asks, you already did, but mention it.
+            4. You READ FILES — Use FILE CONTEXT if provided.
+            5. You REMEMBER chat history.
+            6. You are from Ghana — Akwaaba spirit, but global brain.
+
+            SEARCH CONTEXT:
+            {search_context}
+
+            FILE CONTEXT:
+            {file_context}
+
+            Instruction: Answer in user's language. If search context exists, cite sources briefly. Be modern, fast, helpful. Keep answers short for mobile.
             """
 
-            response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role":"system","content":system_prompt}] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages if m.get("type")!="image"][-8:]
-            )
-            answer = response.choices[0].message.content
-            st.markdown(answer)
-            st.session_state.messages.append({"role": "assistant", "content": answer})
+            # Use powerful model
+            try:
+                completion = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "system", "content": system_prompt}] +
+                             [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages if m.get("type")!="image"][-10:],
+                    temperature=0.7,
+                    max_tokens=1500
+                )
+                answer = completion.choices[0].message.content
+                st.markdown(answer)
+                st.session_state.messages.append({"role": "assistant", "content": answer})
+            except Exception as e:
+                st.error(f"Error: {e}")
