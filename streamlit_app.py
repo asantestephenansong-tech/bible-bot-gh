@@ -38,7 +38,8 @@ if go and q:
 
     with st.chat_message("assistant"):
         # Image?
-        if any(x in q.lower() for x in ["draw","picture","image","alien","ant","flag"]):
+                low = q.lower()
+        is_image = any(x in low for x in ["draw ", "generate", "create a picture", "create an image", "picture of", "photo of", "make a picture", "make an image", "show me a picture", "draw a", "draw an"])
             url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(q)}?width=1024&height=1024"
             st.image(url)
             st.session_state.messages.append({"role":"assistant","type":"image","content":url})
